@@ -1,9 +1,10 @@
-
 import SwiftUI
 
 struct TransactionList: View {
     @EnvironmentObject var transactionListVM: TransactionListViewModel
     @State private var showingAddTransaction = false
+    @State private var showDeleteConfirmation = false
+    @State private var deleteOffsets: IndexSet? = nil
     
     var body: some View {
         VStack {
@@ -22,9 +23,7 @@ struct TransactionList: View {
                 // MARK: Transaction Groups
                 ForEach(Array(transactionListVM.groupTransactionsByMonth()), id: \.key) { month, transactions in
                     Section {
-                        
                         // MARK: Transaction List
-                        
                         ForEach(transactions) { transaction in
                             ZStack {
                                 TransactionRow(transaction: transaction)
@@ -34,13 +33,12 @@ struct TransactionList: View {
                                 .opacity(0)
                             }
                         }
-                        .onDelete(perform: deleteTransaction)
+                        .onDelete(perform: confirmDeleteTransaction)
                     } header: {
                         // MARK: Transaction Month
                         Text(month)
                     }
                     .listSectionSeparator(.hidden)
-                    
                 }
             }
             .listStyle(.plain)
@@ -50,10 +48,26 @@ struct TransactionList: View {
         .sheet(isPresented: $showingAddTransaction) {
             AddTransactionView(showingAddTransaction: $showingAddTransaction)
         }
+        .alert("Confirm Delete", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                performDeleteTransaction()
+            }
+        } message: {
+            Text("Are you sure you want to delete this transaction?")
+        }
     }
     
-    private func deleteTransaction(at offsets: IndexSet) {
-        transactionListVM.deleteTransaction(at: offsets)
+    private func confirmDeleteTransaction(at offsets: IndexSet) {
+        deleteOffsets = offsets
+        showDeleteConfirmation = true
+    }
+    
+    private func performDeleteTransaction() {
+        if let offsets = deleteOffsets {
+            transactionListVM.deleteTransaction(at: offsets)
+            deleteOffsets = nil
+        }
     }
 }
 
