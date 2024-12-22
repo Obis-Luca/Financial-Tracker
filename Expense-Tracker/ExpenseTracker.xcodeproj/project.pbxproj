@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 55;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -48,6 +48,10 @@
 		F141E57B2CE6436C006E8F56 /* AddTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTransactionView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		F18A114E2D16EA3E00DDE0EC /* Database */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Database; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		DD9909CA287DD13000BCF85E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -81,6 +85,7 @@
 		DD9909CF287DD13000BCF85E /* ExpenseTracker */ = {
 			isa = PBXGroup;
 			children = (
+				F18A114E2D16EA3E00DDE0EC /* Database */,
 				DD9909D0287DD13000BCF85E /* ExpenseTrackerApp.swift */,
 				F141E57B2CE6436C006E8F56 /* AddTransactionView.swift */,
 				DD9909D2287DD13000BCF85E /* ContentView.swift */,
@@ -123,6 +128,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F18A114E2D16EA3E00DDE0EC /* Database */,
 			);
 			name = ExpenseTracker;
 			packageProductDependencies = (

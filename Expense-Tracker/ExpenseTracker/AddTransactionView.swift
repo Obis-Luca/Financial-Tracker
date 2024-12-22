@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLite3
 
 struct AddTransactionView: View {
     @EnvironmentObject var transactionListVM: TransactionListViewModel
@@ -51,6 +52,7 @@ struct AddTransactionView: View {
     private func addTransaction() {
         guard let amount = Double(amount) else { return }
 
+        // Create new transaction object
         let newTransaction = Transaction(
             id: Int.random(in: 1000...9999),
             date: transactionDate.formatted(), // Using selected date

@@ -4,7 +4,7 @@ import SwiftUIFontIcon
 
 struct Transaction: Identifiable, Decodable, Hashable {
     let id: Int
-    let date: String
+    let date: String    
     let institution: String
     let account: String
     var merchant: String
