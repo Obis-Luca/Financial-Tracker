@@ -9,6 +9,7 @@ struct AddTransactionView: View {
     @State private var category: Category = .shopping
     @State private var isExpense: Bool = true
     @State private var transactionDate = Date() // New date picker state variable
+    @State private var errorMessage: String? = nil // State variable for error message
 
     var body: some View {
         NavigationView {
@@ -27,7 +28,15 @@ struct AddTransactionView: View {
                         Text("Expense")
                     }
                 }
-                
+
+                if let errorMessage = errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                    }
+                }
+
                 Section {
                     Button(action: {
                         addTransaction()
@@ -39,7 +48,6 @@ struct AddTransactionView: View {
                             .background(Color.blue)
                             .cornerRadius(8)
                     }
-                    .disabled(merchant.isEmpty || amount.isEmpty)
                 }
             }
             .navigationTitle("Add Transaction")
@@ -48,13 +56,23 @@ struct AddTransactionView: View {
             })
         }
     }
-    
+
     private func addTransaction() {
-        guard let amount = Double(amount) else { return }
+        errorMessage = nil // Reset error message
+
+        // Validation
+        guard !merchant.isEmpty else {
+            errorMessage = "Please enter a merchant name."
+            return
+        }
+
+        guard let amount = Double(amount), amount > 0 else {
+            errorMessage = "Please enter a valid amount."
+            return
+        }
 
         // Create new transaction object
-        let newTransaction = Transaction(
-            id: Int.random(in: 1000...9999),
+        let newTransaction = TransactionDTO(
             date: transactionDate.formatted(), // Using selected date
             institution: "Bank",
             account: "Checking",
@@ -68,7 +86,8 @@ struct AddTransactionView: View {
             isExpense: isExpense,
             isEdited: false
         )
-        
+
+        // Add transaction
         transactionListVM.addTransaction(transaction: newTransaction)
         showingAddTransaction = false
     }

@@ -26,6 +26,7 @@
 		DD9909E8287DDD8F00BCF85E /* SwiftUIFontIcon in Frameworks */ = {isa = PBXBuildFile; productRef = DD9909E7287DDD8F00BCF85E /* SwiftUIFontIcon */; };
 		DDCAD1D42891262200714950 /* SwiftUICharts in Frameworks */ = {isa = PBXBuildFile; productRef = DDCAD1D32891262200714950 /* SwiftUICharts */; };
 		F141E57C2CE6436C006E8F56 /* AddTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F141E57B2CE6436C006E8F56 /* AddTransactionView.swift */; };
+		F1E2F1BD2D36E87000E23C12 /* TransactionDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2F1BC2D36E86A00E23C12 /* TransactionDTO.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +47,7 @@
 		DD9909E2287DD70400BCF85E /* PreviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewData.swift; sourceTree = "<group>"; };
 		DD9909E4287DD7B500BCF85E /* TransactionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionRow.swift; sourceTree = "<group>"; };
 		F141E57B2CE6436C006E8F56 /* AddTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTransactionView.swift; sourceTree = "<group>"; };
+		F1E2F1BC2D36E86A00E23C12 /* TransactionDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionDTO.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -96,6 +98,7 @@
 				DD89CAA7287FFFF000BEAA32 /* RecentTransactionList.swift */,
 				DD9909E4287DD7B500BCF85E /* TransactionRow.swift */,
 				DD9909E0287DD5D100BCF85E /* TransactionModel.swift */,
+				F1E2F1BC2D36E86A00E23C12 /* TransactionDTO.swift */,
 				DD9909DE287DD29900BCF85E /* Extensions.swift */,
 				DD89CAA5287FF60100BEAA32 /* TransactionListViewModel.swift */,
 				DD355DD82885424E00B273F8 /* TransactionList.swift */,
@@ -208,6 +211,7 @@
 				DD9909D3287DD13000BCF85E /* ContentView.swift in Sources */,
 				DD9909E5287DD7B500BCF85E /* TransactionRow.swift in Sources */,
 				DD9909DF287DD29900BCF85E /* Extensions.swift in Sources */,
+				F1E2F1BD2D36E87000E23C12 /* TransactionDTO.swift in Sources */,
 				DD89CAA6287FF60100BEAA32 /* TransactionListViewModel.swift in Sources */,
 				DD5832BC28927480008BF77E /* CategoryRow.swift in Sources */,
 				DD9909D1287DD13000BCF85E /* ExpenseTrackerApp.swift in Sources */,

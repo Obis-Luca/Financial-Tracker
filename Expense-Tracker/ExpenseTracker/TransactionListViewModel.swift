@@ -9,71 +9,91 @@ typealias TransactionPrefixSum = [(String, Double)]
 
 final class TransactionListViewModel: ObservableObject {
     // ObservableObject is part of the Combine framework that turns any object into a publisher and will notify its subscribers of its state changes, so they can refresh their views.
+    @Published private var showAlert = false
+    @Published private var alertMessage = ""
     
     @Published var transactions: [Transaction] = []
     
-    private var cancellables = Set<AnyCancellable>()    
+    private var cancellables = Set<AnyCancellable>()
     
     init() {
-        createDatabase()
-//        dropTables()
-//        createTables()
-//        insertCategoryData()
-//        insertTransactionData()
-        
         getTransactions()
     }
     
     func getTransactions() {
-        var queryStatement: OpaquePointer? = nil
-        let query = "SELECT * FROM Transactions;"
-        
-              
-        if sqlite3_prepare_v2(db, query, -1, &queryStatement, nil) == SQLITE_OK {
-            
-            while sqlite3_step(queryStatement) == SQLITE_ROW {
-                
-                // Extract each column from the query result
-                let id = sqlite3_column_int(queryStatement, 0)
-                let date = String(cString: sqlite3_column_text(queryStatement, 1))
-                let institution = String(cString: sqlite3_column_text(queryStatement, 2))
-                let account = String(cString: sqlite3_column_text(queryStatement, 3))
-                let merchant = String(cString: sqlite3_column_text(queryStatement, 4))
-                let amount = sqlite3_column_double(queryStatement, 5)
-                let type = String(cString: sqlite3_column_text(queryStatement, 6))
-                let categoryId = sqlite3_column_int(queryStatement, 7)
-                let category = String(cString: sqlite3_column_text(queryStatement, 8))
-                let isPending = sqlite3_column_int(queryStatement, 9) != 0
-                let isTransfer = sqlite3_column_int(queryStatement, 10) != 0
-                let isExpense = sqlite3_column_int(queryStatement, 11) != 0
-                let isEdited = sqlite3_column_int(queryStatement, 12) != 0
-                
-                // Create a Transaction object and append it to the array
-                let transaction = Transaction(
-                    id: Int(id),
-                    date: date,
-                    institution: institution,
-                    account: account,
-                    merchant: merchant,
-                    amount: amount,
-                    type: type,
-                    categoryId: Int(categoryId),
-                    category: category,
-                    isPending: isPending,
-                    isTransfer: isTransfer,
-                    isExpense: isExpense,
-                    isEdited: isEdited
-                )
-                
-                transactions.append(transaction)
-            }
-        } else {
-            let errorMessage = String(cString: sqlite3_errmsg(db))
-            print("Error preparing query: \(errorMessage)")
+        guard let url = URL(string: "http://localhost:3000/api") else {
+            print("Invalid URL")
+            return
         }
-
-        sqlite3_finalize(queryStatement)
+        
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error fetching transactions: \(error)")
+                return
+            }
+            
+            guard let data = data else {
+                print("No data received")
+                return
+            }
+            
+            do {
+                // Decode data manually with custom mapping
+                if let jsonArray = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                    var fetchedTransactions: [Transaction] = []
+                    
+                    
+                    for json in jsonArray {
+                        let id = json["id"] as? Int ?? 0
+                        let date = json["date"] as? String ?? ""
+                        let institution = json["institution"] as? String ?? ""
+                        let account = json["account"] as? String ?? ""
+                        let merchant = json["merchant"] as? String ?? ""
+                        let amount = json["amount"] as? Double ?? 0.0
+                        let type = json["type"] as? String ?? ""
+                        let categoryId = json["categoryId"] as? Int ?? 0
+                        let category = json["category"] as? String ?? ""
+                        
+                        // Convert 0 and 1 to Bool
+                        let isPending = (json["isPending"] as? Int ?? 0) == 1
+                        let isTransfer = (json["isTransfer"] as? Int ?? 0) == 1
+                        let isExpense = (json["isExpense"] as? Int ?? 0) == 1
+                        let isEdited = (json["isEdited"] as? Int ?? 0) == 1
+                        
+                        // Create Transaction object
+                        let transaction = Transaction(
+                            id: id,
+                            date: date,
+                            institution: institution,
+                            account: account,
+                            merchant: merchant,
+                            amount: amount,
+                            type: type,
+                            categoryId: categoryId,
+                            category: category,
+                            isPending: isPending,
+                            isTransfer: isTransfer,
+                            isExpense: isExpense,
+                            isEdited: isEdited
+                        )
+                        
+                        fetchedTransactions.append(transaction)
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self.transactions = fetchedTransactions
+                        self.transactions.sort { $0.date > $1.date }
+                    }
+                    
+                }
+            } catch {
+                print("Error decoding transactions: \(error)")
+            }
+        }
+        
+        task.resume()
     }
+    
     
     func groupTransactionsByMonth() -> TransactionGroup {
         guard !transactions.isEmpty else { return [:] }
@@ -114,29 +134,51 @@ final class TransactionListViewModel: ObservableObject {
         if let index = transactions.firstIndex(where: { $0.id == transaction.id }) {
             var updatedTransaction = transactions[index]
             updatedTransaction.categoryId = category.id
-            updatedTransaction.isEdited = true
             transactions[index] = updatedTransaction
             
-            // Update in the database
-            let query = """
-            UPDATE Transactions 
-            SET categoryId = ?, isEdited = 1 
-            WHERE id = ?;
-            """
-            var statement: OpaquePointer? = nil
-            if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-                sqlite3_bind_int(statement, 1, Int32(category.id))
-                sqlite3_bind_int(statement, 2, Int32(transaction.id))
-                
-                if sqlite3_step(statement) == SQLITE_DONE {
-                    print("Transaction category updated successfully.")
-                } else {
-                    print("Error updating transaction category: \(String(cString: sqlite3_errmsg(db)!))")
-                }
-            } else {
-                print("Error preparing update statement: \(String(cString: sqlite3_errmsg(db)!))")
+            // Prepare the API request
+            let url = URL(string: "http://localhost:3000/api")! // Replace with your actual server URL
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let requestBody: [String: Any] = [
+                "id": transaction.id,
+                "categoryId": category.id
+            ]
+            
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestBody, options: [])
+            } catch {
+                print("Error serializing JSON: \(error.localizedDescription)")
+                return
             }
-            sqlite3_finalize(statement)
+            
+            // Make the API call
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("Error making API call: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Invalid response from server")
+                    return
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    print("Transaction category updated successfully via API.")
+                } else {
+                    if let data = data,
+                       let errorMessage = String(data: data, encoding: .utf8) {
+                        print("Error response from server: \(errorMessage)")
+                    } else {
+                        print("Unexpected response code: \(httpResponse.statusCode)")
+                    }
+                }
+            }
+            
+            task.resume()
         }
     }
     func deleteTransaction(at offsets: IndexSet) {
@@ -145,69 +187,126 @@ final class TransactionListViewModel: ObservableObject {
         for offset in offsets {
             let transactionToDelete = transactions[offset]
             
-            // Delete from database
-            let query = """
-            DELETE FROM Transactions 
-            WHERE id = ?;
-            """
-            var statement: OpaquePointer? = nil
-            if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-                sqlite3_bind_int(statement, 1, Int32(transactionToDelete.id))
-                
-                if sqlite3_step(statement) == SQLITE_DONE {
-                    print("Transaction deleted successfully.")
-                } else {
-                    print("Error deleting transaction: \(String(cString: sqlite3_errmsg(db)!))")
-                }
-            } else {
-                print("Error preparing delete statement: \(String(cString: sqlite3_errmsg(db)!))")
-            }
-            sqlite3_finalize(statement)
+            // Prepare the API request
+            let url = URL(string: "http://localhost:3000/api")! // Replace with your actual server URL
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            // Remove from array
-            transactions.remove(at: offset)
+            let requestBody: [String: Any] = [
+                "id": transactionToDelete.id
+            ]
+            
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestBody, options: [])
+            } catch {
+                print("Error serializing JSON: \(error.localizedDescription)")
+                return
+            }
+            
+            // Make the API call
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("Error making API call: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Invalid response from server")
+                    return
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    DispatchQueue.main.async {
+                        // Remove from the array on success
+                        self.transactions.remove(at: offset)
+                        print("Transaction deleted successfully via API.")
+                    }
+                } else {
+                    if let data = data,
+                       let errorMessage = String(data: data, encoding: .utf8) {
+                        print("Error response from server: \(errorMessage)")
+                    } else {
+                        print("Unexpected response code: \(httpResponse.statusCode)")
+                    }
+                }
+            }
+            
+            task.resume()
         }
     }
     
-    func addTransaction(transaction: Transaction) {
-        let query = """
-        INSERT INTO Transactions 
-        (id, institution, account, merchant, amount, date, categoryId, category, isPending, isTransfer, isExpense, type, isEdited) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """
-        
-        print(transaction.institution, transaction.account, transaction.merchant)
-
-        var statement: OpaquePointer? = nil
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            // Bind values to the prepared statement
-            sqlite3_bind_int(statement, 1, Int32(transaction.id)) // id
-            sqlite3_bind_text(statement, 2, transaction.institution, -1, nil) // institution
-            sqlite3_bind_text(statement, 3, transaction.account, -1, nil) // account
-            sqlite3_bind_text(statement, 4, transaction.merchant, -1, nil) // merchant
-            sqlite3_bind_double(statement, 5, transaction.amount) // amount
-            sqlite3_bind_text(statement, 6, transaction.date, -1, nil) // date
-            sqlite3_bind_int(statement, 7, Int32(transaction.categoryId)) // categoryId
-            sqlite3_bind_text(statement, 8, transaction.category, -1, nil) // category
-            sqlite3_bind_int(statement, 9, transaction.isPending ? 1 : 0) // isPending
-            sqlite3_bind_int(statement, 10, transaction.isTransfer ? 1 : 0) // isTransfer
-            sqlite3_bind_int(statement, 11, transaction.isExpense ? 1 : 0) // isExpense
-            sqlite3_bind_text(statement, 12, transaction.type, -1, nil) // type
-            sqlite3_bind_int(statement, 13, transaction.isEdited ? 1 : 0) // isEdited
-            
-            // Execute the statement
-            if sqlite3_step(statement) == SQLITE_DONE {
-                print("Transaction added successfully to the database.")
-            } else {
-                print("Error adding transaction to the database: \(String(cString: sqlite3_errmsg(db)!))")
-            }
-        } else {
-            print("Error preparing insert statement: \(String(cString: sqlite3_errmsg(db)!))")
+    func addTransaction(transaction: TransactionDTO) {
+        // Step 1: Validate the fields
+        guard !transaction.merchant.isEmpty else {
+            alertMessage = "Merchant cannot be empty."
+            showAlert = true
+            return
         }
-        sqlite3_finalize(statement)
         
-        objectWillChange.send()
-        transactions.append(transaction)
-        transactions.sort { $0.dateParsed > $1.dateParsed }
+        guard transaction.amount > 0 else {
+            alertMessage = "Amount must be greater than zero."
+            showAlert = true
+            return
+        }
+        
+        // Step 2: Create the URL
+        guard let url = URL(string: "http://localhost:3000/api") else {
+            print("Invalid URL")
+            return
+        }
+        
+        // Step 3: Prepare the URLRequest
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Step 4: Encode the TransactionDTO object into JSON
+        do {
+            let jsonData = try JSONEncoder().encode(transaction)
+            request.httpBody = jsonData
+        } catch {
+            print("Failed to encode transaction: \(error.localizedDescription)")
+            return
+        }
+        
+        // Step 5: Perform the POST request
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Failed to make POST request: \(error.localizedDescription)")
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                print("Transaction added successfully!")
+                
+                // Convert TransactionDTO to Transaction
+                let newTransaction = Transaction(
+                    id: Int.random(in: 1000...9999), // Generate a temporary ID for the transaction
+                    date: transaction.date,
+                    institution: transaction.institution,
+                    account: transaction.account,
+                    merchant: transaction.merchant,
+                    amount: transaction.amount,
+                    type: transaction.type,
+                    categoryId: transaction.categoryId,
+                    category: transaction.category,
+                    isPending: transaction.isPending,
+                    isTransfer: transaction.isTransfer,
+                    isExpense: transaction.isExpense,
+                    isEdited: transaction.isEdited
+                )
+                
+                DispatchQueue.main.async {
+                    // Add the new transaction to the list
+                    self.transactions.append(newTransaction)
+                    self.transactions.sort { $0.date > $1.date }
+                }
+            } else {
+                print("Failed to add transaction.")
+            }
+        }
+        
+        task.resume() // Start the task
     }
 }
